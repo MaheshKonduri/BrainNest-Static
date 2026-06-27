@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BrainNest Trading Platform Pro</title>
+    <link rel="icon" type="image/png" href="../assets/favicon.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg-primary: #0d1117;
+            --bg-card: rgba(22,27,40,0.7);
+            --border-card: rgba(163,113,255,0.1);
+            --purple: #a371ff;
+            --purple-light: #c9a0ff;
+            --cyan: #00d4ff;
+            --green: #22ff88;
+            --green-soft: #34d399;
+            --red: #ff4444;
+            --red-soft: #f87171;
+            --yellow: #fbbf24;
+            --text-primary: #e6edf3;
+            --text-secondary: #9ca3b0;
+            --text-muted: #8b949e;
+            --text-dim: #607080;
+        }
+
+        html, body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            line-height: 1.5;
+            overflow-x: hidden;
+        }
+
+        /* ── Scrollbar ── */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); }
+        ::-webkit-scrollbar-thumb { background: rgba(163,113,255,0.25); border-radius: 2px; }
+
+        /* ══════════════════════════════════════════════
+           TICKER TAPE
+           ══════════════════════════════════════════════ */
+        .ticker-tape-container {
+            overflow: hidden;
+            background: linear-gradient(90deg, rgba(13,17,23,0.95), rgba(22,27,40,0.8), rgba(13,17,23,0.95));
+            border-bottom: 1px solid rgba(163,113,255,0.08);
+            padding: 6px 0;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 999999;
+            height: 32px;
+            display: flex;
+            align-items: center;
+        }
+        .ticker-tape {
+            display: inline-flex;
+            animation: scroll-tape 35s linear infinite;
+            font-size: 0.78rem;
+        }
+        .ticker-tape:hover { animation-play-state: paused; }
+        @keyframes scroll-tape { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+        .tape-item { display: inline-flex; align-items: center; gap: 6px; margin-right: 40px; white-space: nowrap; }
+        .tape-ticker { color: var(--text-primary); font-weight: 700; }
+        .tape-price { color: var(--text-secondary); }
+        .tape-up { color: var(--green); font-weight: 600; }
+        .tape-down { color: var(--red); font-weight: 600; }
+
+        /* ══════════════════════════════════════════════
+           WATERMARK
+           ══════════════════════════════════════════════ */
+        .bn-watermark {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%) rotate(-30deg);
+            font-size: 5.5rem;
+            font-weight: 900;
+            color: rgba(163,113,255,0.035);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            pointer-events: none;
+            z-index: 99998;
+            white-space: nowrap;
+            user-select: none;
+        }
+        .bn-watermark-tiled {
+            position: fixed; inset: 0;
+            z-index: 99997;
+            pointer-events: none;
+            overflow: hidden;
+            user-select: none;
+        }
+        .bn-watermark-tiled::before {
+            content: 'BrainNest  ·  BrainNest  ·  BrainNest  ·  BrainNest  ·  BrainNest  ·  BrainNest  ·  BrainNest  ·  BrainNest  ·  BrainNest  ·  BrainNest  ·  BrainNest  ·  BrainNest  ·  BrainNest  ·  BrainNest  ·  BrainNest  ·  BrainNest';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: rgba(163,113,255,0.02);
+            letter-spacing: 0.15em;
+            word-spacing: 60px;
+            line-height: 7;
+            transform: rotate(-30deg);
+            white-space: normal;
+        }
+
+        /* ══════════════════════════════════════════════
+           LAYOUT
+           ══════════════════════════════════════════════ */
+        .container {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 48px 24px 32px;
+        }
+
+        /* ══════════════════════════════════════════════
+           HEADER
+           ══════════════════════════════════════════════ */
+        .bn-header {
+            display: flex; align-items: center; gap: 16px;
+            padding: 18px 28px; margin-top: 1rem;
+            background: linear-gradient(135deg, rgba(22,27,40,0.9) 0%, rgba(0,30,70,0.3) 100%);
+            backdrop-filter: blur(20px);
+            border-radius: 16px; margin-bottom: 1.2rem;
+            border: 1px solid rgba(163,113,255,0.15);
+            position: relative; overflow: hidden;
+            box-shadow: 0 4px 30px rgba(0,0,0,0.3);
+        }
+        .bn-header::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, #00b4ff, #a371ff, #00e5ff, #a371ff, #00b4ff);
+            background-size: 200% 100%;
+            animation: shimmer-bar 3s ease infinite;
+        }
+        @keyframes shimmer-bar { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        .bn-logo-box {
+            width: 72px; height: 72px; flex-shrink: 0;
+            border-radius: 16px; overflow: hidden;
+            background: linear-gradient(135deg, rgba(0,180,255,0.1), rgba(163,113,255,0.1));
+            border: 1px solid rgba(0,180,255,0.25);
+            box-shadow: 0 0 24px rgba(0,180,255,0.4), 0 0 48px rgba(163,113,255,0.2);
+            display: flex; align-items: center; justify-content: center;
+            animation: logo-neon 3s ease-in-out infinite;
+        }
+        .bn-logo-box img { width: 58px; height: 58px; object-fit: contain; filter: brightness(1.5) drop-shadow(0 0 10px rgba(0,180,255,0.7)); }
+        @keyframes logo-neon { 0%, 100% { box-shadow: 0 0 20px rgba(0,180,255,0.3), 0 0 40px rgba(163,113,255,0.2); } 50% { box-shadow: 0 0 28px rgba(0,180,255,0.5), 0 0 52px rgba(163,113,255,0.3); } }
+
+        .bn-title h1 { font-size: 2.1rem; font-weight: 800; line-height: 1.2; margin: 0; }
+        .bn-title h1 span {
+            background: linear-gradient(135deg, #00b4ff, #a371ff, #00e5ff);
+            background-size: 200% 200%;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            animation: title-shimmer 4s ease infinite;
+        }
+        @keyframes title-shimmer { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+        .bn-title p { font-size: 0.58rem; color: var(--text-dim); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; margin: 2px 0 0; }
+
+        .bn-badges { margin-left: auto; display: flex; gap: 8px; }
+        .badge { padding: 5px 12px; border-radius: 6px; font-size: 0.63rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+        .badge-live { background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.25); color: var(--green-soft); display: flex; align-items: center; gap: 5px; }
+        .badge-live::before { content: ''; width: 6px; height: 6px; background: var(--green-soft); border-radius: 50%; animation: pulse-dot 2s infinite; }
+        @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .badge-pro { background: rgba(163,113,255,0.1); border: 1px solid rgba(163,113,255,0.25); color: var(--purple); }
+        .badge-version { background: rgba(139,148,158,0.1); border: 1px solid rgba(139,148,158,0.2); color: var(--text-muted); }
+
+        /* ══════════════════════════════════════════════
+           TABS
+           ══════════════════════════════════════════════ */
+        .tabs-container {
+            background: rgba(22,27,40,0.9); backdrop-filter: blur(16px);
+            border-radius: 12px; padding: 5px 6px; margin-bottom: 1.2rem;
+            border: 1px solid rgba(163,113,255,0.12);
+            display: flex; gap: 2px; flex-wrap: wrap;
+        }
+        .tab-btn {
+            border: none; border-radius: 8px; color: var(--text-muted);
+            font-size: 0.73rem; font-weight: 600; padding: 8px 14px;
+            background: transparent; cursor: pointer; transition: all 0.2s;
+        }
+        .tab-btn:hover { color: var(--text-primary); background: rgba(163,113,255,0.1); }
+        .tab-btn.active {
+            background: linear-gradient(135deg, #a371ff, #8247e5);
+            color: #fff; box-shadow: 0 2px 16px rgba(163,113,255,0.5);
+        }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* ══════════════════════════════════════════════
+           CARDS
+           ══════════════════════════════════════════════ */
+        .card {
+            background: var(--bg-card); backdrop-filter: blur(12px);
+            border: 1px solid var(--border-card); border-radius: 14px;
+            padding: 1.2rem 1.4rem; margin-bottom: 0.8rem;
+            transition: all 0.2s;
+        }
+        .card:hover { border-color: rgba(163,113,255,0.25); box-shadow: 0 4px 20px rgba(163,113,255,0.08); }
+
+        /* ══════════════════════════════════════════════
+           METRICS ROW
+           ══════════════════════════════════════════════ */
+        .metrics-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 1.2rem; }
+        .metric-card {
+            background: var(--bg-card); backdrop-filter: blur(12px);
+            border: 1px solid var(--border-card); border-radius: 12px;
+            padding: 16px; text-align: center; height: 100px;
+            display: flex; flex-direction: column; justify-content: center;
+        }
+        .metric-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--purple); margin-bottom: 6px; }
+        .metric-value { font-size: 1.5rem; font-weight: 800; color: #f0f6fc; }
+
+        /* ══════════════════════════════════════════════
+           SIGNAL BADGES
+           ══════════════════════════════════════════════ */
+        .signal-badge {
+            display: inline-block; padding: 6px 18px; border-radius: 8px;
+            font-size: 1.1rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+        }
+        .signal-badge.strong-buy {
+            background: rgba(34,255,136,0.1); border: 1px solid rgba(34,255,136,0.3); color: var(--green);
+            animation: badge-blink-green 1s ease-in-out infinite;
+        }
+        @keyframes badge-blink-green { 0%, 100% { box-shadow: 0 0 8px rgba(34,255,136,0.3); } 50% { box-shadow: 0 0 24px rgba(34,255,136,0.6); } }
+
+        /* ══════════════════════════════════════════════
+           SCORE RINGS
+           ══════════════════════════════════════════════ */
+        .score-rings { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 1rem; }
+        .score-ring-wrap { text-align: center; }
+        .score-ring { display: inline-block; position: relative; width: 80px; height: 80px; }
+        .score-ring svg { transform: rotate(-90deg); width: 80px; height: 80px; }
+        .score-ring .ring-bg { fill: none; stroke: rgba(48,54,68,0.6); stroke-width: 5; }
+        .score-ring .ring-fill { fill: none; stroke-width: 5; stroke-linecap: round; transition: stroke-dashoffset 1s; }
+        .score-ring .ring-value { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 1.15rem; font-weight: 800; color: #f0f6fc; }
+        .score-ring-label { font-size: 0.6rem; color: var(--text-secondary); margin-top: 4px; font-weight: 600; text-transform: uppercase; }
+
+        /* ══════════════════════════════════════════════
+           SCORE BARS
+           ══════════════════════════════════════════════ */
+        .score-bar { margin-bottom: 10px; }
+        .score-bar-header { display: flex; justify-content: space-between; font-size: 0.7rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
+        .score-bar-track { width: 100%; height: 7px; background: rgba(48,54,68,0.5); border-radius: 4px; overflow: hidden; }
+        .score-bar-fill { height: 100%; border-radius: 4px; transition: width 0.8s; }
+        .fill-purple { background: linear-gradient(90deg, #a371ff, #c9a0ff); }
+        .fill-green { background: linear-gradient(90deg, #34d399, #6ee7b7); }
+        .fill-orange { background: linear-gradient(90deg, #fbbf24, #fcd34d); }
+
+        /* ══════════════════════════════════════════════
+           PATTERN GRID
+           ══════════════════════════════════════════════ */
+        .pattern-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 1rem; }
+        .pattern-card { background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 14px; padding: 16px; text-align: center; }
+        .pattern-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
+        .pattern-value { font-size: 1.7rem; font-weight: 800; }
+        .pattern-value.bullish { color: var(--green); text-shadow: 0 0 16px rgba(34,255,136,0.4); }
+        .pattern-value.bearish { color: var(--red); }
+        .pattern-value.neutral { color: var(--yellow); }
+
+        /* ══════════════════════════════════════════════
+           V4 DECISION CARD
+           ══════════════════════════════════════════════ */
+        .v4-card {
+            background: rgba(34,255,136,0.06); border: 1px solid rgba(34,255,136,0.2);
+            border-radius: 14px; padding: 18px 22px; margin-bottom: 1rem;
+        }
+        .v4-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+        .v4-decision { font-size: 1.5rem; font-weight: 800; color: var(--green); }
+        .v4-engine-tag { font-size: 0.65rem; color: var(--text-muted); background: rgba(22,27,40,0.5); padding: 4px 10px; border-radius: 4px; font-weight: 600; }
+        .v4-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .v4-cell { padding: 10px 12px; background: rgba(22,27,40,0.5); border-radius: 8px; text-align: center; }
+        .v4-cell-label { font-size: 0.58rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 4px; }
+        .v4-cell-value { font-size: 1rem; font-weight: 800; }
+
+        /* ══════════════════════════════════════════════
+           GRID LAYOUTS
+           ══════════════════════════════════════════════ */
+        .two-col { display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; }
+        .two-col-equal { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .section-title { font-size: 1.1rem; font-weight: 700; color: var(--purple); letter-spacing: 0.04em; margin-bottom: 10px; }
+
+        /* ══════════════════════════════════════════════
+           RISK PLAN
+           ══════════════════════════════════════════════ */
+        .risk-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        .risk-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+        .risk-entry { padding: 10px 14px; background: rgba(34,255,136,0.08); border: 1px solid rgba(34,255,136,0.25); border-radius: 10px; }
+        .risk-stop { padding: 10px 14px; background: rgba(255,68,68,0.08); border: 1px solid rgba(255,68,68,0.25); border-radius: 10px; }
+        .risk-tp { padding: 10px 14px; background: rgba(163,113,255,0.06); border: 1px solid rgba(163,113,255,0.15); border-radius: 10px; text-align: center; }
+        .risk-label { font-size: 0.6rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; }
+        .risk-value { font-size: 1.15rem; font-weight: 700; }
+
+        /* ══════════════════════════════════════════════
+           TABLES
+           ══════════════════════════════════════════════ */
+        .dark-table { width: 100%; border-collapse: collapse; background: var(--bg-card); border-radius: 12px; overflow: hidden; }
+        .dark-table th { color: var(--purple); font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 10px 14px; border-bottom: 1px solid rgba(163,113,255,0.15); text-align: left; }
+        .dark-table td { font-size: 0.78rem; padding: 10px 14px; border-bottom: 1px solid rgba(163,113,255,0.05); color: var(--text-primary); }
+        .table-wrap { border: 1px solid rgba(163,113,255,0.1); border-radius: 12px; overflow: hidden; margin-bottom: 1rem; }
+
+        /* ══════════════════════════════════════════════
+           MACRO / OPTIONS / VOLUME CARDS
+           ══════════════════════════════════════════════ */
+        .mini-grid { display: flex; gap: 8px; margin-bottom: 10px; }
+        .mini-cell { flex: 1; text-align: center; padding: 8px; background: rgba(22,27,40,0.5); border: 1px solid rgba(163,113,255,0.06); border-radius: 8px; }
+        .mini-cell-label { font-size: 0.55rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+        .mini-cell-value { font-size: 0.9rem; font-weight: 700; }
+
+        .gauge-bar { width: 100%; height: 6px; background: linear-gradient(90deg, var(--red), var(--yellow), var(--green)); border-radius: 3px; position: relative; margin-bottom: 6px; }
+        .gauge-dot { position: absolute; top: -3px; width: 12px; height: 12px; background: #fff; border-radius: 50%; transform: translateX(-50%); box-shadow: 0 0 6px rgba(255,255,255,0.5); }
+        .gauge-labels { display: flex; justify-content: space-between; font-size: 0.55rem; color: var(--text-muted); margin-bottom: 8px; }
+
+        .signal-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+        .signal-item { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+        .signal-item span { font-size: 0.76rem; color: #c8cdd5; }
+
+        /* ══════════════════════════════════════════════
+           FOOTER
+           ══════════════════════════════════════════════ */
+        .bn-footer {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 22px; background: rgba(22,27,40,0.6);
+            border-top: 1px solid rgba(163,113,255,0.1); border-radius: 12px;
+            margin-top: 2rem; font-size: 0.67rem; color: var(--text-muted);
+        }
+        .footer-left, .footer-right { display: flex; align-items: center; gap: 12px; }
+        .footer-dot { width: 6px; height: 6px; background: var(--green-soft); border-radius: 50%; box-shadow: 0 0 8px rgba(52,211,153,0.6); }
+
+        /* ══════════════════════════════════════════════
+           RESPONSIVE
+           ══════════════════════════════════════════════ */
+        @media (max-width: 900px) {
+            .metrics-row { grid-template-columns: repeat(3, 1fr); }
+            .two-col { grid-template-columns: 1fr; }
+            .two-col-equal { grid-template-columns: 1fr; }
+            .v4-grid { grid-template-columns: repeat(2, 1fr); }
+            .score-rings { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 600px) {
+            .metrics-row { grid-template-columns: 1fr 1fr; }
+            .bn-badges { display: none; }
+            .bn-header { padding: 14px 16px; }
+            .container { padding: 44px 12px 20px; }
+        }
+
+        /* ── Disclaimer ── */
+        .disclaimer {
+            background: rgba(163,113,255,0.06); border: 1px solid rgba(163,113,255,0.18);
+            border-radius: 10px; padding: 12px 16px; margin-bottom: 1rem;
+            font-size: 0.78rem; color: var(--text-secondary);
+        }
+
+        /* ── Chart container ── */
+        .chart-container { border-radius: 12px; overflow: hidden; margin-bottom: 1rem; }
+    </style>
+</head>
+<body>
+
+<!-- ══════════════ TICKER TAPE ══════════════ -->
+<div class="ticker-tape-container">
+    <div class="ticker-tape" id="ticker-tape"></div>
+</div>
+
+<!-- ══════════════ WATERMARK ══════════════ -->
+<div class="bn-watermark">🧠 BrainNest</div>
+<div class="bn-watermark-tiled"></div>
+
+<div class="container">
+
+<!-- ══════════════ HEADER ══════════════ -->
+<div class="bn-header">
+    <div class="bn-logo-box">
+        <span style="font-size:36px;">🧠</span>
+    </div>
+    <div class="bn-title">
+        <h1><span>BrainNest</span></h1>
+        <p>Trading Platform Pro &nbsp;·&nbsp; Market Intelligence Suite</p>
+    </div>
+    <div class="bn-badges">
+        <span class="badge badge-live">Live Data</span>
+        <span class="badge badge-pro">Pro</span>
+        <span class="badge badge-version">v3.0</span>
+    </div>
+</div>
+
+<!-- ══════════════ DISCLAIMER ══════════════ -->
+<div class="disclaimer">
+    ⚠️ Not financial advice. Trading involves substantial risk of loss. This platform is for research, education, and paper trading only.
+</div>
+
+<!-- ══════════════ TABS ══════════════ -->
+<div class="tabs-container">
+    <button class="tab-btn active" onclick="switchTab('overview')">📊 Overview</button>
+    <button class="tab-btn" onclick="switchTab('signal')">🧠 Signal Engine</button>
+    <button class="tab-btn" onclick="switchTab('charts')">📈 Charts</button>
+    <button class="tab-btn" onclick="switchTab('fundamentals')">💰 Fundamentals</button>
+    <button class="tab-btn" onclick="switchTab('technical')">🔬 Technical</button>
+    <button class="tab-btn" onclick="switchTab('patterns')">🔍 Patterns</button>
+    <button class="tab-btn" onclick="switchTab('recommendations')">🎯 Recommendations</button>
+    <button class="tab-btn" onclick="switchTab('portfolio')">💼 Portfolio</button>
+    <button class="tab-btn" onclick="switchTab('backtest')">⚡ Backtest</button>
+    <button class="tab-btn" onclick="switchTab('sentiment')">📰 Sentiment</button>
+    <button class="tab-btn" onclick="switchTab('journal')">📓 Journal</button>
+</div>
+
+
+<!-- ══════════════ TAB: OVERVIEW ══════════════ -->
+<div class="tab-panel active" id="tab-overview">
+    <!-- Metrics Row -->
+    <div class="metrics-row">
+        <div class="metric-card">
+            <div class="metric-label">Ticker</div>
+            <span class="signal-badge strong-buy" style="font-size:1.2rem;">NVDA</span>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Last Price</div>
+            <div class="metric-value">$142.56</div>
+            <div style="font-size:0.78rem;font-weight:700;color:var(--green);margin-top:2px;">▲ +2.34%</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Volume</div>
+            <div class="metric-value">312.4M</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Signal</div>
+            <span class="signal-badge strong-buy">Strong Buy</span>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Confidence</div>
+            <div class="metric-value" style="color:var(--green);">78.4%</div>
+        </div>
+    </div>
+
+    <div class="two-col">
+        <!-- LEFT COLUMN -->
+        <div>
+            <div class="section-title">Research Summary</div>
+            <div class="card">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                    <div>
+                        <div style="font-size:0.6rem;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Final Recommendation</div>
+                        <div style="font-size:1.6rem;font-weight:800;color:var(--green);text-shadow:0 0 16px rgba(34,255,136,0.4);">Strong Buy</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:0.6rem;color:var(--text-muted);font-weight:700;text-transform:uppercase;">Confidence</div>
+                        <div style="font-size:1.6rem;font-weight:800;color:var(--green);">78.4%</div>
+                    </div>
+                </div>
+                <div style="font-size:0.82rem;color:var(--text-secondary);"><span style="color:var(--purple);font-weight:600;">Headline:</span> Price is above EMA 20 with strong momentum and bullish MACD crossover.</div>
+            </div>
+
+            <!-- Technical Drivers -->
+            <div class="card">
+                <div style="font-size:0.9rem;color:var(--purple);font-weight:700;text-transform:uppercase;margin-bottom:10px;">Technical Drivers</div>
+                <div class="signal-item"><div class="signal-dot" style="background:var(--cyan);box-shadow:0 0 6px rgba(0,212,255,0.5);"></div><span>Price is above EMA 20 — short-term trend bullish.</span></div>
+                <div class="signal-item"><div class="signal-dot" style="background:var(--cyan);box-shadow:0 0 6px rgba(0,212,255,0.5);"></div><span>MACD is above signal — bullish momentum active.</span></div>
+                <div class="signal-item"><div class="signal-dot" style="background:var(--cyan);box-shadow:0 0 6px rgba(0,212,255,0.5);"></div><span>ADX at 28.5 suggests strong trend.</span></div>
+                <div class="signal-item"><div class="signal-dot" style="background:var(--cyan);box-shadow:0 0 6px rgba(0,212,255,0.5);"></div><span>Fresh MACD bullish crossover detected.</span></div>
+                <div class="signal-item"><div class="signal-dot" style="background:var(--cyan);box-shadow:0 0 6px rgba(0,212,255,0.5);"></div><span>Price is above VWAP — institutional buying.</span></div>
+            </div>
+
+            <!-- Volume Drivers -->
+            <div class="card">
+                <div style="font-size:0.9rem;color:var(--purple);font-weight:700;text-transform:uppercase;margin-bottom:10px;">Volume Drivers</div>
+                <div class="signal-item"><div class="signal-dot" style="background:var(--green);box-shadow:0 0 6px rgba(34,255,136,0.5);"></div><span>Volume spike at 1.8x average — strong institutional interest.</span></div>
+                <div class="signal-item"><div class="signal-dot" style="background:var(--green);box-shadow:0 0 6px rgba(34,255,136,0.5);"></div><span>Bullish volume confirmation — price and volume aligned.</span></div>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div>
+            <div class="section-title">Score Breakdown</div>
+            <div class="score-rings" id="score-rings"></div>
+            <div id="score-bars"></div>
+
+            <div class="section-title" style="margin-top:16px;">Wall Street Consensus</div>
+            <div class="card">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                    <div>
+                        <div style="font-size:1.3rem;font-weight:800;color:var(--green);">Strong Buy</div>
+                        <div style="font-size:0.7rem;color:var(--text-muted);">42 analysts</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:0.6rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;">Price Target</div>
+                        <div style="font-size:1.2rem;font-weight:700;">$165</div>
+                        <div style="font-size:0.72rem;font-weight:700;color:var(--green);">+15.7% upside</div>
+                    </div>
+                </div>
+                <div class="mini-grid">
+                    <div class="mini-cell"><div class="mini-cell-label">Low</div><div class="mini-cell-value" style="color:var(--red);">$120</div></div>
+                    <div class="mini-cell"><div class="mini-cell-label">Current</div><div class="mini-cell-value">$143</div></div>
+                    <div class="mini-cell"><div class="mini-cell-label">High</div><div class="mini-cell-value" style="color:var(--green);">$200</div></div>
+                </div>
+            </div>
+
+            <div class="section-title">Volatility & Risk</div>
+            <div class="card">
+                <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:10px;">
+                    <div style="font-size:1rem;font-weight:800;color:var(--yellow);">MODERATE</div>
+                </div>
+                <div style="width:100%;height:8px;background:rgba(48,54,68,0.5);border-radius:4px;overflow:hidden;margin-bottom:12px;">
+                    <div style="width:35%;height:100%;border-radius:4px;background:linear-gradient(90deg,var(--green),var(--yellow),var(--red));"></div>
+                </div>
+                <div class="mini-grid">
+                    <div class="mini-cell"><div class="mini-cell-label">30D Vol</div><div class="mini-cell-value" style="color:var(--yellow);">28.5%</div></div>
+                    <div class="mini-cell"><div class="mini-cell-label">90D Vol</div><div class="mini-cell-value">32.1%</div></div>
+                    <div class="mini-cell"><div class="mini-cell-label">ATR %</div><div class="mini-cell-value">2.8%</div></div>
+                    <div class="mini-cell"><div class="mini-cell-label">Beta</div><div class="mini-cell-value">1.65</div></div>
+                </div>
+            </div>
+
+            <div class="section-title">Pattern Heat</div>
+            <div class="pattern-grid">
+                <div class="pattern-card"><div class="pattern-label">Bullish</div><div class="pattern-value bullish">4</div></div>
+                <div class="pattern-card"><div class="pattern-label">Bearish</div><div class="pattern-value bearish">1</div></div>
+                <div class="pattern-card"><div class="pattern-label">Neutral</div><div class="pattern-value neutral">2</div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ══════════════ TAB: SIGNAL ENGINE ══════════════ -->
+<div class="tab-panel" id="tab-signal">
+    <p style="font-size:0.82rem;color:var(--text-dim);margin-bottom:14px;">Signal Engine V4 — 7-dimension scoring, market regime detection, no-trade rules, risk management, and daily protection.</p>
+
+    <div class="section-title">V4 Final Decision</div>
+    <div class="v4-card">
+        <div class="v4-header">
+            <div class="v4-decision">APPROVED</div>
+            <div class="v4-engine-tag">V4 Engine</div>
+        </div>
+        <div class="v4-grid">
+            <div class="v4-cell"><div class="v4-cell-label">Signal</div><div class="v4-cell-value" style="color:var(--text-primary);">Strong Buy</div></div>
+            <div class="v4-cell"><div class="v4-cell-label">Confidence</div><div class="v4-cell-value" style="color:var(--green);">78.4%</div></div>
+            <div class="v4-cell"><div class="v4-cell-label">Regime</div><div class="v4-cell-value" style="color:var(--green);">BULLISH</div></div>
+            <div class="v4-cell"><div class="v4-cell-label">Risk Level</div><div class="v4-cell-value" style="color:var(--green);">LOW</div></div>
+        </div>
+        <div class="v4-grid" style="margin-top:10px;">
+            <div class="v4-cell"><div class="v4-cell-label">Trade Bias</div><div class="v4-cell-value" style="color:var(--purple);font-size:0.85rem;">LONG ONLY</div></div>
+            <div class="v4-cell"><div class="v4-cell-label">Position</div><div class="v4-cell-value" style="font-size:0.85rem;">15 shares</div></div>
+            <div class="v4-cell"><div class="v4-cell-label">R:R Ratio</div><div class="v4-cell-value" style="color:var(--green);font-size:0.85rem;">1.3:1</div></div>
+            <div class="v4-cell"><div class="v4-cell-label">Mode</div><div class="v4-cell-value" style="color:var(--purple);font-size:0.85rem;">PAPER</div></div>
+        </div>
+    </div>
+
+    <hr style="border:none;height:1px;background:linear-gradient(90deg,transparent,rgba(163,113,255,0.2),transparent);margin:16px 0;">
+
+    <div class="two-col-equal">
+        <!-- Daily Protection -->
+        <div>
+            <div class="section-title">Daily Protection</div>
+            <div class="card">
+                <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:10px;">
+                    <div style="font-size:1rem;font-weight:800;color:var(--green);">ACTIVE</div>
+                </div>
+                <div class="mini-grid">
+                    <div class="mini-cell"><div class="mini-cell-label">Trades</div><div class="mini-cell-value">1/3</div></div>
+                    <div class="mini-cell"><div class="mini-cell-label">W / L</div><div class="mini-cell-value"><span style="color:var(--green);">1</span> / <span style="color:var(--red);">0</span></div></div>
+                    <div class="mini-cell"><div class="mini-cell-label">Consec Loss</div><div class="mini-cell-value">0/2</div></div>
+                </div>
+                <div class="mini-grid" style="margin-top:8px;">
+                    <div class="mini-cell"><div class="mini-cell-label">Daily P&L</div><div class="mini-cell-value" style="color:var(--green);">+$145</div></div>
+                    <div class="mini-cell"><div class="mini-cell-label">Max DD</div><div class="mini-cell-value">$0</div></div>
+                    <div class="mini-cell"><div class="mini-cell-label">Remaining</div><div class="mini-cell-value" style="color:var(--green);">2</div></div>
+                </div>
+            </div>
+        </div>
+        <!-- Options Flow -->
+        <div>
+            <div class="section-title">Options Flow</div>
+            <div class="card">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                    <div style="font-size:0.65rem;color:var(--text-muted);">Exp: Jul 05, 2026</div>
+                    <div style="font-size:1rem;font-weight:800;color:var(--green);">Bullish</div>
+                </div>
+                <div class="mini-grid">
+                    <div class="mini-cell" style="background:rgba(34,255,136,0.06);border-color:rgba(34,255,136,0.1);"><div class="mini-cell-label">Call Vol</div><div class="mini-cell-value" style="color:var(--green);">485,200</div></div>
+                    <div class="mini-cell" style="background:rgba(255,68,68,0.06);border-color:rgba(255,68,68,0.1);"><div class="mini-cell-label">Put Vol</div><div class="mini-cell-value" style="color:var(--red);">301,000</div></div>
+                    <div class="mini-cell"><div class="mini-cell-label">P/C Ratio</div><div class="mini-cell-value" style="color:var(--green);">0.62</div></div>
+                    <div class="mini-cell"><div class="mini-cell-label">OI P/C</div><div class="mini-cell-value">0.75</div></div>
+                </div>
+                <div class="gauge-bar" style="margin-top:10px;"><div class="gauge-dot" style="left:69%;"></div></div>
+                <div class="gauge-labels"><span>Bearish</span><span>Neutral</span><span>Bullish</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="two-col-equal">
+        <!-- Volume Intelligence -->
+        <div>
+            <div class="section-title">Volume Intelligence</div>
+            <div class="card">
+                <div class="mini-grid">
+                    <div class="mini-cell"><div class="mini-cell-label">RVOL</div><div class="mini-cell-value" style="color:var(--yellow);">1.8x</div><div style="font-size:0.55rem;color:var(--yellow);">Above Avg</div></div>
+                    <div class="mini-cell"><div class="mini-cell-label">Current Vol</div><div class="mini-cell-value">312.4M</div></div>
+                    <div class="mini-cell"><div class="mini-cell-label">20D Avg</div><div class="mini-cell-value">173.6M</div></div>
+                </div>
+                <div class="signal-item" style="margin-top:8px;"><div class="signal-dot" style="background:var(--green);box-shadow:0 0 6px rgba(34,255,136,0.5);"></div><span>Bullish volume confirmation</span></div>
+                <div class="signal-item"><div class="signal-dot" style="background:var(--green);box-shadow:0 0 6px rgba(34,255,136,0.5);"></div><span style="color:var(--green);font-weight:600;">Volume spike detected.</span></div>
+            </div>
+        </div>
+        <!-- Insider Activity -->
+        <div>
+            <div class="section-title">Insider Activity</div>
+            <div class="card">
+                <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:10px;">
+                    <div style="font-size:1rem;font-weight:800;color:var(--green);">Net Buying</div>
+                </div>
+                <div class="mini-grid">
+                    <div class="mini-cell" style="background:rgba(34,255,136,0.06);border-color:rgba(34,255,136,0.12);"><div class="mini-cell-label">Shares Bought</div><div class="mini-cell-value" style="color:var(--green);">245,000</div></div>
+                    <div class="mini-cell" style="background:rgba(255,68,68,0.06);border-color:rgba(255,68,68,0.12);"><div class="mini-cell-label">Shares Sold</div><div class="mini-cell-value" style="color:var(--red);">82,000</div></div>
+                    <div class="mini-cell"><div class="mini-cell-label">Net (6M)</div><div class="mini-cell-value" style="color:var(--green);">+163,000</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-title">Macro Environment</div>
+    <div class="card">
+        <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:10px;">
+            <div style="font-size:1rem;font-weight:800;color:var(--green);">Bullish</div>
+        </div>
+        <div style="width:100%;height:8px;background:linear-gradient(90deg,var(--red),var(--yellow),var(--green));border-radius:4px;position:relative;margin-bottom:12px;">
+            <div class="gauge-dot" style="left:72%;top:-4px;width:16px;height:16px;"></div>
+        </div>
+        <div class="mini-grid">
+            <div class="mini-cell"><div class="mini-cell-label">VIX (Fear)</div><div class="mini-cell-value">14.2</div><div style="font-size:0.65rem;font-weight:600;color:var(--green);">▲ -3.50%</div></div>
+            <div class="mini-cell"><div class="mini-cell-label">S&P 500</div><div class="mini-cell-value">545.20</div><div style="font-size:0.65rem;font-weight:600;color:var(--green);">▲ +0.64%</div></div>
+            <div class="mini-cell"><div class="mini-cell-label">10Y Yield</div><div class="mini-cell-value">4.25%</div><div style="font-size:0.65rem;font-weight:600;color:var(--red);">▼ -0.80%</div></div>
+            <div class="mini-cell"><div class="mini-cell-label">Dollar Index</div><div class="mini-cell-value">104.3</div><div style="font-size:0.65rem;font-weight:600;color:var(--red);">▼ -0.20%</div></div>
+        </div>
+        <div style="margin-top:10px;">
+            <div class="signal-item"><div class="signal-dot" style="background:var(--green);box-shadow:0 0 6px rgba(34,255,136,0.5);"></div><span>VIX below 16 — market calm, favorable for longs</span></div>
+            <div class="signal-item"><div class="signal-dot" style="background:var(--green);box-shadow:0 0 6px rgba(34,255,136,0.5);"></div><span>SPY above 20-day EMA — uptrend intact</span></div>
+            <div class="signal-item"><div class="signal-dot" style="background:var(--yellow);box-shadow:0 0 6px rgba(251,191,36,0.5);"></div><span>Treasury yields stable — no rate shock</span></div>
+        </div>
+    </div>
+
+    <div class="section-title">Risk Plan</div>
+    <div class="card">
+        <div class="risk-grid-2">
+            <div class="risk-entry"><div class="risk-label">Entry</div><div class="risk-value" style="color:var(--green);">$141.80</div><div style="font-size:0.6rem;color:var(--text-muted);">VWAP pullback</div></div>
+            <div class="risk-stop"><div class="risk-label">Stop Loss</div><div class="risk-value" style="color:var(--red);">$138.50</div><div style="font-size:0.6rem;color:var(--text-muted);">Below EMA 50</div></div>
+        </div>
+        <div class="risk-grid-3">
+            <div class="risk-tp"><div class="risk-label">TP1</div><div class="risk-value">$146.05</div><div style="font-size:0.62rem;color:var(--purple);font-weight:600;">1.3R</div></div>
+            <div class="risk-tp"><div class="risk-label">TP2</div><div class="risk-value">$148.90</div><div style="font-size:0.62rem;color:var(--purple);font-weight:600;">2.2R</div></div>
+            <div class="risk-tp"><div class="risk-label">TP3</div><div class="risk-value">$153.20</div><div style="font-size:0.62rem;color:var(--purple);font-weight:600;">3.5R</div></div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ══════════════ TAB: CHARTS ══════════════ -->
+<div class="tab-panel" id="tab-charts">
+    <div class="section-title">Price Chart — NVDA</div>
+    <div class="chart-container" id="price-chart" style="height:450px;"></div>
+
+    <div class="section-title">Momentum Dashboard</div>
+    <div class="chart-container" id="momentum-chart" style="height:350px;"></div>
+</div>
+
+<!-- ══════════════ TAB: FUNDAMENTALS ══════════════ -->
+<div class="tab-panel" id="tab-fundamentals">
+    <div class="section-title">Key Metrics</div>
+    <div class="table-wrap">
+        <table class="dark-table">
+            <thead><tr><th>Metric</th><th style="text-align:right;">Value</th></tr></thead>
+            <tbody>
+                <tr><td>Revenue CAGR %</td><td style="text-align:right;color:var(--green);font-weight:700;">28.50</td></tr>
+                <tr><td>EPS CAGR %</td><td style="text-align:right;color:var(--green);font-weight:700;">45.20</td></tr>
+                <tr><td>Profit Margin %</td><td style="text-align:right;color:var(--green);font-weight:700;">55.80</td></tr>
+                <tr><td>ROE %</td><td style="text-align:right;color:var(--green);font-weight:700;">69.40</td></tr>
+                <tr><td>Debt-to-Equity</td><td style="text-align:right;color:var(--green);font-weight:700;">0.41</td></tr>
+                <tr><td>P/E Ratio</td><td style="text-align:right;color:var(--yellow);font-weight:700;">62.30</td></tr>
+                <tr><td>PEG</td><td style="text-align:right;color:var(--yellow);font-weight:700;">1.80</td></tr>
+                <tr><td>Free Cash Flow CAGR %</td><td style="text-align:right;color:var(--green);font-weight:700;">32.10</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section-title">Last 6 Quarters — Earnings</div>
+    <div class="table-wrap">
+        <table class="dark-table">
+            <thead><tr><th>Date</th><th>EPS Est</th><th>EPS Actual</th><th>Surprise %</th></tr></thead>
+            <tbody>
+                <tr style="background:rgba(34,255,136,0.03);"><td>2026-05-28</td><td style="color:var(--text-secondary);">0.85</td><td style="color:var(--green);font-weight:600;">0.98</td><td style="color:var(--green);font-weight:600;">+15.3%</td></tr>
+                <tr style="background:rgba(34,255,136,0.03);"><td>2026-02-26</td><td style="color:var(--text-secondary);">0.74</td><td style="color:var(--green);font-weight:600;">0.81</td><td style="color:var(--green);font-weight:600;">+9.5%</td></tr>
+                <tr style="background:rgba(34,255,136,0.03);"><td>2025-11-20</td><td style="color:var(--text-secondary);">0.70</td><td style="color:var(--green);font-weight:600;">0.78</td><td style="color:var(--green);font-weight:600;">+11.4%</td></tr>
+                <tr style="background:rgba(34,255,136,0.03);"><td>2025-08-28</td><td style="color:var(--text-secondary);">0.64</td><td style="color:var(--green);font-weight:600;">0.68</td><td style="color:var(--green);font-weight:600;">+6.3%</td></tr>
+                <tr style="background:rgba(34,255,136,0.03);"><td>2025-05-24</td><td style="color:var(--text-secondary);">0.52</td><td style="color:var(--green);font-weight:600;">0.60</td><td style="color:var(--green);font-weight:600;">+15.4%</td></tr>
+                <tr style="background:rgba(34,255,136,0.03);"><td>2025-02-21</td><td style="color:var(--text-secondary);">0.45</td><td style="color:var(--green);font-weight:600;">0.47</td><td style="color:var(--green);font-weight:600;">+4.4%</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ══════════════ TAB: TECHNICAL ══════════════ -->
+<div class="tab-panel" id="tab-technical">
+    <div class="section-title">Latest Technical Signals</div>
+    <div class="table-wrap">
+        <table class="dark-table">
+            <thead><tr><th>Indicator</th><th>Value</th><th>Signal</th></tr></thead>
+            <tbody>
+                <tr><td>EMA 9</td><td>$143.20</td><td style="color:var(--green);font-weight:600;">Bullish</td></tr>
+                <tr><td>EMA 20</td><td>$140.85</td><td style="color:var(--green);font-weight:600;">Bullish</td></tr>
+                <tr><td>EMA 50</td><td>$136.40</td><td style="color:var(--green);font-weight:600;">Bullish</td></tr>
+                <tr><td>SMA 200</td><td>$118.50</td><td style="color:var(--green);font-weight:600;">Bullish</td></tr>
+                <tr><td>RSI 14</td><td>62.5</td><td style="color:var(--yellow);font-weight:600;">Neutral</td></tr>
+                <tr><td>MACD</td><td>1.85</td><td style="color:var(--green);font-weight:600;">Bullish</td></tr>
+                <tr><td>ADX</td><td>28.5</td><td style="color:var(--green);font-weight:600;">Strong Trend</td></tr>
+                <tr><td>VWAP</td><td>$141.30</td><td style="color:var(--green);font-weight:600;">Bullish</td></tr>
+                <tr><td>Stochastic K</td><td>72.3</td><td style="color:var(--yellow);font-weight:600;">Overbought Zone</td></tr>
+                <tr><td>Bollinger Upper</td><td>$148.20</td><td style="color:var(--text-secondary);">Resistance</td></tr>
+                <tr><td>Bollinger Lower</td><td>$135.80</td><td style="color:var(--text-secondary);">Support</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ══════════════ TAB: PATTERNS ══════════════ -->
+<div class="tab-panel" id="tab-patterns">
+    <div class="pattern-grid">
+        <div class="pattern-card"><div class="pattern-label">Bullish</div><div class="pattern-value bullish">4</div></div>
+        <div class="pattern-card"><div class="pattern-label">Bearish</div><div class="pattern-value bearish">1</div></div>
+        <div class="pattern-card"><div class="pattern-label">Neutral</div><div class="pattern-value neutral">2</div></div>
+    </div>
+    <div class="section-title">Detected Patterns</div>
+    <div class="table-wrap">
+        <table class="dark-table">
+            <thead><tr><th>Pattern</th><th>Type</th><th>Confidence</th><th>Implication</th></tr></thead>
+            <tbody>
+                <tr><td>Hammer</td><td style="color:var(--green);font-weight:600;">Bullish</td><td>High</td><td>Reversal signal at support</td></tr>
+                <tr><td>Bullish Engulfing</td><td style="color:var(--green);font-weight:600;">Bullish</td><td>High</td><td>Strong buying pressure</td></tr>
+                <tr><td>Morning Star</td><td style="color:var(--green);font-weight:600;">Bullish</td><td>Medium</td><td>Trend reversal</td></tr>
+                <tr><td>Three White Soldiers</td><td style="color:var(--green);font-weight:600;">Bullish</td><td>Medium</td><td>Sustained buying</td></tr>
+                <tr><td>Doji</td><td style="color:var(--yellow);font-weight:600;">Neutral</td><td>Low</td><td>Indecision</td></tr>
+                <tr><td>Spinning Top</td><td style="color:var(--yellow);font-weight:600;">Neutral</td><td>Low</td><td>Indecision</td></tr>
+                <tr><td>Shooting Star</td><td style="color:var(--red);font-weight:600;">Bearish</td><td>Medium</td><td>Potential top</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ══════════════ TAB: RECOMMENDATIONS ══════════════ -->
+<div class="tab-panel" id="tab-recommendations">
+    <div class="card" style="border-left:4px solid var(--green-soft);padding-left:24px;">
+        <div style="font-size:1.9rem;font-weight:800;color:var(--green);animation:blink-green 1.2s ease-in-out infinite;">Strong Buy</div>
+        <div style="font-size:0.82rem;color:var(--text-muted);margin-top:4px;"><b style="color:var(--text-primary);">Confidence</b> 78.4% &nbsp;·&nbsp; <b style="color:var(--text-primary);">Signal</b> Price is above EMA 20 with strong momentum and bullish MACD crossover.</div>
+        <div class="gauge-bar" style="margin-top:12px;"><div style="position:absolute;top:0;left:0;width:78.4%;height:100%;border-radius:3px;background:linear-gradient(90deg,var(--green),#6ee7b7);box-shadow:0 0 12px rgba(34,255,136,0.5);"></div></div>
+    </div>
+
+    <div class="section-title" style="margin-top:16px;">Risk Plan</div>
+    <div class="card">
+        <div class="risk-grid-2">
+            <div class="risk-entry"><div class="risk-label">Entry</div><div class="risk-value" style="color:var(--green);">$141.80</div><div style="font-size:0.6rem;color:var(--text-muted);">VWAP pullback</div></div>
+            <div class="risk-stop"><div class="risk-label">Stop Loss</div><div class="risk-value" style="color:var(--red);">$138.50</div><div style="font-size:0.6rem;color:var(--text-muted);">Below EMA 50</div></div>
+        </div>
+        <div class="risk-grid-3">
+            <div class="risk-tp"><div class="risk-label">TP1</div><div class="risk-value">$146.05</div><div style="font-size:0.62rem;color:var(--purple);font-weight:600;">1.3R</div></div>
+            <div class="risk-tp"><div class="risk-label">TP2</div><div class="risk-value">$148.90</div><div style="font-size:0.62rem;color:var(--purple);font-weight:600;">2.2R</div></div>
+            <div class="risk-tp"><div class="risk-label">TP3</div><div class="risk-value">$153.20</div><div style="font-size:0.62rem;color:var(--purple);font-weight:600;">3.5R</div></div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════ TAB: PORTFOLIO ══════════════ -->
+<div class="tab-panel" id="tab-portfolio">
+    <div class="section-title">Paper Trading Portfolio</div>
+    <div class="table-wrap">
+        <table class="dark-table">
+            <thead><tr><th>Ticker</th><th>Side</th><th>Qty</th><th>Entry</th><th>Current</th><th>P&L</th><th>Status</th></tr></thead>
+            <tbody>
+                <tr><td style="font-weight:600;">NVDA</td><td style="color:var(--green);">BUY</td><td>15</td><td>$138.50</td><td>$142.56</td><td style="color:var(--green);font-weight:700;">+$60.90</td><td style="color:var(--green-soft);">Open</td></tr>
+                <tr><td style="font-weight:600;">AMD</td><td style="color:var(--green);">BUY</td><td>20</td><td>$158.20</td><td>$164.30</td><td style="color:var(--green);font-weight:700;">+$122.00</td><td style="color:var(--green-soft);">Open</td></tr>
+                <tr><td style="font-weight:600;">META</td><td style="color:var(--green);">BUY</td><td>5</td><td>$505.00</td><td>$512.30</td><td style="color:var(--green);font-weight:700;">+$36.50</td><td style="color:var(--green-soft);">Open</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ══════════════ TAB: BACKTEST ══════════════ -->
+<div class="tab-panel" id="tab-backtest">
+    <div class="section-title">Backtest Results (2Y)</div>
+    <div class="metrics-row" style="grid-template-columns:repeat(4,1fr);">
+        <div class="metric-card"><div class="metric-label">Total Return</div><div class="metric-value" style="color:var(--green);font-size:1.3rem;">+34.2%</div></div>
+        <div class="metric-card"><div class="metric-label">Win Rate</div><div class="metric-value" style="font-size:1.3rem;">62.5%</div></div>
+        <div class="metric-card"><div class="metric-label">Sharpe Ratio</div><div class="metric-value" style="font-size:1.3rem;">1.85</div></div>
+        <div class="metric-card"><div class="metric-label">Max Drawdown</div><div class="metric-value" style="color:var(--red);font-size:1.3rem;">-8.3%</div></div>
+    </div>
+    <div class="chart-container" id="equity-chart" style="height:350px;"></div>
+</div>
+
+<!-- ══════════════ TAB: SENTIMENT ══════════════ -->
+<div class="tab-panel" id="tab-sentiment">
+    <div class="card">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+            <div style="font-size:1.4rem;font-weight:800;color:var(--green);">▲ Positive</div>
+            <div style="font-size:1rem;font-weight:700;color:var(--green);">+0.342</div>
+            <div style="margin-left:auto;font-size:0.65rem;color:var(--text-muted);background:rgba(163,113,255,0.08);padding:3px 8px;border-radius:4px;">Finnhub · 5 articles</div>
+        </div>
+        <div class="gauge-bar"><div class="gauge-dot" style="left:67%;"></div></div>
+        <div class="gauge-labels"><span>Bearish</span><span>Neutral</span><span>Bullish</span></div>
+    </div>
+
+    <div class="section-title">Recent News</div>
+    <div class="table-wrap">
+        <table class="dark-table">
+            <thead><tr><th>Headline</th><th>Sentiment</th><th>Source</th></tr></thead>
+            <tbody>
+                <tr><td>NVIDIA beats Q2 earnings expectations, raises guidance</td><td style="color:var(--green);font-weight:700;">+0.85</td><td style="color:var(--text-muted);">Finnhub</td></tr>
+                <tr><td>AI chip demand surges as data center spending accelerates</td><td style="color:var(--green);font-weight:700;">+0.72</td><td style="color:var(--text-muted);">Reuters</td></tr>
+                <tr><td>Wall Street raises NVDA price targets after blowout results</td><td style="color:var(--green);font-weight:700;">+0.65</td><td style="color:var(--text-muted);">CNBC</td></tr>
+                <tr><td>NVIDIA announces next-gen Blackwell GPU architecture</td><td style="color:var(--yellow);font-weight:700;">+0.42</td><td style="color:var(--text-muted);">Bloomberg</td></tr>
+                <tr><td>Tech stocks rally on strong semiconductor earnings</td><td style="color:var(--yellow);font-weight:700;">+0.38</td><td style="color:var(--text-muted);">MarketWatch</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ══════════════ TAB: JOURNAL ══════════════ -->
+<div class="tab-panel" id="tab-journal">
+    <div class="metrics-row" style="grid-template-columns:repeat(6,1fr);">
+        <div class="metric-card"><div class="metric-label">Orders</div><div class="metric-value" style="font-size:1.3rem;">12</div></div>
+        <div class="metric-card"><div class="metric-label">Paper</div><div class="metric-value" style="font-size:1.3rem;">10</div></div>
+        <div class="metric-card"><div class="metric-label">Live</div><div class="metric-value" style="font-size:1.3rem;">2</div></div>
+        <div class="metric-card"><div class="metric-label">Blocked</div><div class="metric-value" style="font-size:1.3rem;">1</div></div>
+        <div class="metric-card"><div class="metric-label">Open Positions</div><div class="metric-value" style="font-size:1.3rem;">3</div></div>
+        <div class="metric-card"><div class="metric-label">Gross Notional</div><div class="metric-value" style="font-size:1.1rem;">$24,500</div></div>
+    </div>
+</div>
+
+
+<!-- ══════════════ FOOTER ══════════════ -->
+<div class="bn-footer">
+    <div class="footer-left">
+        <div class="footer-dot"></div>
+        <span>System Online</span>
+        <span>·</span>
+        <span id="footer-time"></span>
+    </div>
+    <div class="footer-right">
+        <span>BrainNest Trading Platform Pro v3.0</span>
+        <span>·</span>
+        <span>Not financial advice</span>
+    </div>
+</div>
+
+</div><!-- end container -->
+
+<!-- ══════════════════════════════════════════════════════════════════════════════════
+     JAVASCRIPT
+     ══════════════════════════════════════════════════════════════════════════════════ -->
+<script>
+// ── Ticker Tape ──
+const tapeData = [
+    {t:"AAPL",p:198.11,c:0.87},{t:"MSFT",p:442.58,c:1.12},{t:"NVDA",p:142.56,c:2.34},
+    {t:"GOOGL",p:178.92,c:0.58},{t:"AMZN",p:193.25,c:-0.45},{t:"META",p:512.30,c:1.65},
+    {t:"TSLA",p:248.75,c:-1.23},{t:"AMD",p:164.30,c:3.12},{t:"AVGO",p:178.45,c:1.87},
+    {t:"NFLX",p:632.50,c:0.92},{t:"SPY",p:545.20,c:0.64},{t:"QQQ",p:475.80,c:1.05}
+];
+let tapeHTML = '';
+tapeData.forEach(d => {
+    const color = d.c >= 0 ? 'tape-up' : 'tape-down';
+    const arrow = d.c >= 0 ? '▲' : '▼';
+    tapeHTML += `<span class="tape-item"><span class="tape-ticker">${d.t}</span><span class="tape-price">$${d.p.toFixed(2)}</span><span class="${color}">${arrow} ${d.c >= 0 ? '+' : ''}${d.c.toFixed(2)}%</span></span>`;
+});
+document.getElementById('ticker-tape').innerHTML = tapeHTML + tapeHTML;
+
+// ── Tabs ──
+function switchTab(name) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    event.target.classList.add('active');
+    // Render charts when Charts tab is activated
+    if (name === 'charts') renderCharts();
+    if (name === 'backtest') renderEquityChart();
+}
+
+// ── Score Rings ──
+function scoreRing(value, color) {
+    const r = 35, circ = 2 * Math.PI * r, offset = circ * (1 - value / 100);
+    return `<div class="score-ring"><svg viewBox="0 0 80 80"><circle class="ring-bg" cx="40" cy="40" r="${r}"/><circle class="ring-fill" cx="40" cy="40" r="${r}" stroke="${color}" stroke-dasharray="${circ}" stroke-dashoffset="${offset}" style="filter:drop-shadow(0 0 6px ${color}50);"/></svg><span class="ring-value">${Math.round(value)}</span></div>`;
+}
+const rings = [
+    {v:82.3,c:'#34d399',l:'Technical 30%'},{v:71.0,c:'#fbbf24',l:'Pattern 15%'},
+    {v:85.2,c:'#00d4ff',l:'Volume 25%'},{v:78.4,c:'#34d399',l:'Composite'}
+];
+let ringsHTML = '';
+rings.forEach(r => { ringsHTML += `<div class="score-ring-wrap">${scoreRing(r.v, r.c)}<div class="score-ring-label">${r.l}</div></div>`; });
+document.getElementById('score-rings').innerHTML = ringsHTML;
+
+// ── Score Bars ──
+const bars = [
+    {l:'Pattern (15%)',v:71.0,c:'fill-orange'},{l:'Technical (30%)',v:82.3,c:'fill-green'},
+    {l:'Volume (25%)',v:85.2,c:'fill-purple'},{l:'Options (10%)',v:68.0,c:'fill-green'},
+    {l:'Sentiment (5%)',v:65.8,c:'fill-orange'},{l:'Market (10%)',v:72.5,c:'fill-purple'},
+    {l:'Fundamental (5%)',v:62.5,c:'fill-green'}
+];
+let barsHTML = '';
+bars.forEach(b => { barsHTML += `<div class="score-bar"><div class="score-bar-header"><span>${b.l}</span><span>${b.v.toFixed(1)}</span></div><div class="score-bar-track"><div class="score-bar-fill ${b.c}" style="width:${b.v}%"></div></div></div>`; });
+document.getElementById('score-bars').innerHTML = barsHTML;
+
+// ── Footer Time ──
+document.getElementById('footer-time').textContent = new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
+
+// ── Charts (Plotly) ──
+function renderCharts() {
+    // Generate mock OHLC
+    const n = 120;
+    let prices = [142.56];
+    for (let i = 1; i < n; i++) prices.unshift(prices[0] / (1 + (Math.random() - 0.48) * 0.03));
+    const dates = [];
+    const d = new Date('2026-06-26');
+    for (let i = n - 1; i >= 0; i--) { const nd = new Date(d); nd.setDate(d.getDate() - i * 1.4); dates.push(nd.toISOString().split('T')[0]); }
+    const open = prices.map(p => p * (1 + (Math.random() - 0.5) * 0.01));
+    const high = prices.map((p, i) => Math.max(p, open[i]) * (1 + Math.random() * 0.015));
+    const low = prices.map((p, i) => Math.min(p, open[i]) * (1 - Math.random() * 0.015));
+
+    // EMA 20
+    const ema20 = []; let em = prices[0];
+    prices.forEach((p, i) => { em = i === 0 ? p : p * 0.0952 + em * 0.9048; ema20.push(em); });
+
+    Plotly.newPlot('price-chart', [
+        {x:dates,open:open,high:high,low:low,close:prices,type:'candlestick',name:'Price',increasing:{line:{color:'#22ff88'}},decreasing:{line:{color:'#ff4444'}}},
+        {x:dates,y:ema20,type:'scatter',mode:'lines',name:'EMA 20',line:{color:'#a371ff',width:1.5}}
+    ], {
+        template:'plotly_dark',title:{text:'NVDA — Price Chart',font:{color:'#a371ff',size:16}},
+        paper_bgcolor:'rgba(13,17,23,0)',plot_bgcolor:'rgba(22,27,40,0.3)',
+        yaxis:{title:'Price ($)'},height:440,
+        xaxis:{rangeslider:{visible:false}},
+        legend:{bgcolor:'rgba(22,27,40,0.5)',font:{color:'#e6edf3'}}
+    }, {responsive:true});
+
+    // RSI + MACD
+    const rsi = []; let r = 55;
+    for (let i = 0; i < n; i++) { r += (Math.random() - 0.48) * 4; r = Math.max(25, Math.min(80, r)); rsi.push(r); }
+    const macd = []; let m = 0;
+    for (let i = 0; i < n; i++) { m += (Math.random() - 0.48) * 0.5; macd.push(m); }
+    const sig = []; let s = 0;
+    macd.forEach((v, i) => { s = i === 0 ? v : v * 0.2 + s * 0.8; sig.push(s); });
+    const hist = macd.map((v, i) => v - sig[i]);
+    const histColors = hist.map(h => h >= 0 ? '#22ff88' : '#ff4444');
+
+    Plotly.newPlot('momentum-chart', [
+        {x:dates,y:rsi,type:'scatter',mode:'lines',name:'RSI 14',line:{color:'#a371ff',width:2},yaxis:'y'},
+        {x:dates,y:macd,type:'scatter',mode:'lines',name:'MACD',line:{color:'#00d4ff',width:2},yaxis:'y2'},
+        {x:dates,y:sig,type:'scatter',mode:'lines',name:'Signal',line:{color:'#ff4444',width:1.5},yaxis:'y2'},
+        {x:dates,y:hist,type:'bar',name:'Histogram',marker:{color:histColors},opacity:0.5,yaxis:'y2'}
+    ], {
+        template:'plotly_dark',title:{text:'Momentum Dashboard',font:{color:'#a371ff',size:16}},
+        paper_bgcolor:'rgba(13,17,23,0)',plot_bgcolor:'rgba(22,27,40,0.3)',height:340,
+        grid:{rows:2,columns:1,pattern:'independent'},
+        yaxis:{title:'RSI',domain:[0.55,1]},
+        yaxis2:{title:'MACD',domain:[0,0.45]},
+        legend:{bgcolor:'rgba(22,27,40,0.5)',font:{color:'#e6edf3'}}
+    }, {responsive:true});
+}
+
+function renderEquityChart() {
+    const n = 500; let equity = [10000];
+    for (let i = 1; i < n; i++) equity.push(equity[i-1] * (1 + (Math.random() - 0.47) * 0.016));
+    const dates = [];
+    const d = new Date('2026-06-26');
+    for (let i = n - 1; i >= 0; i--) { const nd = new Date(d); nd.setDate(d.getDate() - i); dates.push(nd.toISOString().split('T')[0]); }
+
+    Plotly.newPlot('equity-chart', [{
+        x:dates,y:equity,type:'scatter',mode:'lines',name:'Equity',
+        line:{color:'#a371ff',width:2},fill:'tozeroy',fillcolor:'rgba(163,113,255,0.08)'
+    }], {
+        template:'plotly_dark',title:{text:'Equity Curve',font:{color:'#a371ff',size:16}},
+        paper_bgcolor:'rgba(13,17,23,0)',plot_bgcolor:'rgba(22,27,40,0.3)',height:340,
+        yaxis:{title:'Portfolio Value ($)'}
+    }, {responsive:true});
+}
+</script>
+</body>
+</html>
